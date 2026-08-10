@@ -239,3 +239,21 @@ DeviceNetworkEvents
 | project RemoteIP, RemotePort, HostCount, Hosts, Processes
 | order by HostCount desc
 ```
+
+## 13) Dead-drop resolver: non-browser process fetching C2 config from public profiles
+
+**ATT&CK:** T1102.001  
+**Severity:** High  
+**Purpose:** Vidar and similar stealers retrieve their C2 address from attacker-controlled Steam Community profiles and Telegram channel descriptions. Detects a non-browser, non-client process fetching these dead-drop resolvers — a durable TTP independent of rotating C2 IPs.
+
+```kusto
+DeviceNetworkEvents
+| where Timestamp > ago(1d)
+| where RemoteUrl has_any ("steamcommunity.com","t.me","telegra.ph","api.telegram.org","mastodon.social") or RemoteUrl endswith "telegram.org"
+| where InitiatingProcessFileName !in~ ("chrome.exe","msedge.exe","firefox.exe","brave.exe","opera.exe","vivaldi.exe","msedgewebview2.exe","steam.exe","steamwebhelper.exe","Telegram.exe","outlook.exe","olk.exe","teams.exe","ms-teams.exe","slack.exe")
+| project Timestamp, DeviceName, DeviceId, InitiatingProcessAccountName, InitiatingProcessFileName, InitiatingProcessFolderPath, InitiatingProcessCommandLine, InitiatingProcessSHA256, RemoteUrl, RemoteIP, RemotePort, ReportId
+```
+
+**Tuning notes:**
+- Exclude enterprise proxy/inspection agents and any sanctioned chat integrations by process name.
+- Highest confidence when InitiatingProcessFolderPath is under Temp/AppData/ProgramData or the process is unsigned; add that filter if a security or monitoring tool generates volume.

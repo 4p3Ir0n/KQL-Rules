@@ -353,6 +353,29 @@ DeviceProcessEvents
 | order by Timestamp desc
 ```
 
+## 17) Infostealer copying browser credential and cookie stores (Vidar-style)
+
+**ATT&CK:** T1555.003  
+**Severity:** High  
+**Purpose:** Vidar and similar infostealers copy Chromium/Gecko credential databases (Login Data, Cookies, key4.db, logins.json, Local State) out of browser profiles. Detects those artefacts being created/copied by a process that is not a browser.
+
+```kusto
+DeviceFileEvents
+| where Timestamp > ago(1d)
+| where FileName in~ ("Login Data","Login Data For Account","Cookies","Web Data","Local State","key4.db","key3.db","logins.json","cert9.db","formhistory.sqlite","places.sqlite","signons.sqlite")
+    or FileName in~ ("nss3.dll","freebl3.dll","mozglue.dll","softokn3.dll","msvcp140.dll","vcruntime140.dll")
+| where InitiatingProcessFileName !in~ ("chrome.exe","msedge.exe","firefox.exe","brave.exe","opera.exe","opera_gx.exe","vivaldi.exe","msedgewebview2.exe","chrome_proxy.exe","iexplore.exe","MsMpEng.exe","OneDrive.exe","backgroundTaskHost.exe","setup.exe")
+| where FolderPath has_any (@"\appdata\local\temp", @"\appdata\roaming", @"\programdata", @"\users\public", @"\windows\temp", @"\downloads")
+    or InitiatingProcessFolderPath has_any (@"\appdata\local\temp", @"\appdata\roaming", @"\programdata", @"\users\public", @"\windows\temp", @"\downloads")
+| summarize Artifacts=make_set(FileName, 20), Paths=make_set(FolderPath, 10), FileCount=count(), FirstSeen=min(Timestamp), LastSeen=max(Timestamp) by DeviceId, DeviceName, InitiatingProcessFileName, InitiatingProcessFolderPath, InitiatingProcessCommandLine, InitiatingProcessSHA256, InitiatingProcessAccountName
+| project FirstSeen, LastSeen, DeviceName, DeviceId, InitiatingProcessAccountName, InitiatingProcessFileName, InitiatingProcessFolderPath, InitiatingProcessCommandLine, InitiatingProcessSHA256, FileCount, Artifacts, Paths
+```
+
+**Tuning notes:**
+- Allowlist backup/DLP/browser-migration and profile-sync agents by InitiatingProcessSHA256 or signer.
+- The DLL names catch stealers staging NSS decryption libraries next to their payload — drop them if legitimate installers in Temp create noise.
+- Alert priority increases sharply when FileCount is high or the initiating binary is unsigned.
+
 ---
 
 ## Recommended correlations
