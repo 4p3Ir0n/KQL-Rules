@@ -1,0 +1,23 @@
+{
+  "_comment": "Curated subset of Microsoft Defender XDR Advanced Hunting tables and their commonly used columns. Table names are validated as errors; unknown columns are warnings only, since this list is intentionally partial.",
+  "DeviceProcessEvents": ["Timestamp", "DeviceId", "DeviceName", "AccountName", "AccountDomain", "AccountSid", "FileName", "FolderPath", "SHA256", "SHA1", "MD5", "ProcessCommandLine", "ProcessId", "ProcessCreationTime", "InitiatingProcessFileName", "InitiatingProcessCommandLine", "InitiatingProcessParentFileName", "InitiatingProcessAccountName", "InitiatingProcessFolderPath", "InitiatingProcessSHA256", "ReportId"],
+  "DeviceNetworkEvents": ["Timestamp", "DeviceId", "DeviceName", "ActionType", "RemoteIP", "RemotePort", "RemoteUrl", "LocalIP", "LocalPort", "Protocol", "InitiatingProcessFileName", "InitiatingProcessCommandLine", "InitiatingProcessAccountName", "InitiatingProcessSHA256", "ReportId"],
+  "DeviceFileEvents": ["Timestamp", "DeviceId", "DeviceName", "ActionType", "FileName", "FolderPath", "SHA256", "SHA1", "MD5", "FileSize", "InitiatingProcessFileName", "InitiatingProcessCommandLine", "InitiatingProcessAccountName", "ReportId"],
+  "DeviceRegistryEvents": ["Timestamp", "DeviceId", "DeviceName", "ActionType", "RegistryKey", "RegistryValueName", "RegistryValueData", "PreviousRegistryKey", "InitiatingProcessFileName", "InitiatingProcessCommandLine", "InitiatingProcessAccountName", "ReportId"],
+  "DeviceLogonEvents": ["Timestamp", "DeviceId", "DeviceName", "ActionType", "LogonType", "AccountName", "AccountDomain", "AccountSid", "RemoteIP", "RemoteDeviceName", "IsLocalAdmin", "InitiatingProcessFileName", "ReportId"],
+  "DeviceImageLoadEvents": ["Timestamp", "DeviceId", "DeviceName", "ActionType", "FileName", "FolderPath", "SHA256", "InitiatingProcessFileName", "InitiatingProcessCommandLine", "ReportId"],
+  "DeviceEvents": ["Timestamp", "DeviceId", "DeviceName", "ActionType", "FileName", "FolderPath", "SHA256", "RegistryKey", "RegistryValueData", "RemoteIP", "RemoteUrl", "ProcessCommandLine", "InitiatingProcessFileName", "InitiatingProcessCommandLine", "AdditionalFields", "ReportId"],
+  "DeviceInfo": ["Timestamp", "DeviceId", "DeviceName", "OSPlatform", "OSVersion", "PublicIP", "LoggedOnUsers", "DeviceCategory", "ReportId"],
+  "DeviceNetworkInfo": ["Timestamp", "DeviceId", "DeviceName", "NetworkAdapterType", "IPAddresses", "ReportId"],
+  "DeviceFileCertificateInfo": ["Timestamp", "DeviceId", "SHA1", "IsSigned", "Signer", "Issuer", "IsTrusted", "ReportId"],
+  "EmailEvents": ["Timestamp", "NetworkMessageId", "SenderFromAddress", "SenderMailFromAddress", "RecipientEmailAddress", "Subject", "DeliveryAction", "ThreatTypes", "AttachmentCount", "UrlCount", "ReportId"],
+  "EmailAttachmentInfo": ["Timestamp", "NetworkMessageId", "SenderFromAddress", "RecipientEmailAddress", "FileName", "FileType", "SHA256", "ThreatTypes", "ReportId"],
+  "EmailUrlInfo": ["Timestamp", "NetworkMessageId", "Url", "UrlDomain", "ReportId"],
+  "UrlClickEvents": ["Timestamp", "NetworkMessageId", "AccountUpn", "Url", "ActionType", "IsClickedThrough", "ReportId"],
+  "IdentityLogonEvents": ["Timestamp", "ActionType", "LogonType", "AccountName", "AccountDomain", "AccountUpn", "DeviceName", "IPAddress", "Application", "Protocol", "ReportId"],
+  "IdentityQueryEvents": ["Timestamp", "ActionType", "AccountName", "AccountDomain", "Query", "QueryType", "QueryTarget", "DeviceName", "ReportId"],
+  "IdentityDirectoryEvents": ["Timestamp", "ActionType", "AccountName", "AccountDomain", "TargetAccountUpn", "DeviceName", "AdditionalFields", "ReportId"],
+  "CloudAppEvents": ["Timestamp", "ActionType", "Application", "AccountDisplayName", "AccountObjectId", "IPAddress", "ObjectName", "ObjectType", "ActivityObjects", "RawEventData", "ReportId"],
+  "AlertInfo": ["Timestamp", "AlertId", "Title", "Category", "Severity", "AttackTechniques", "ServiceSource", "DetectionSource", "ReportId"],
+  "AlertEvidence": ["Timestamp", "AlertId", "DeviceId", "DeviceName", "AccountName", "FileName", "SHA256", "RemoteIP", "RemoteUrl", "EntityType", "ReportId"]
+}
