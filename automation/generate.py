@@ -44,23 +44,59 @@ _DETECTION_SCHEMA = {
 _SYSTEM = """You are a senior detection engineer writing Kusto Query Language (KQL) \
 detections for Microsoft Defender XDR / Advanced Hunting.
 
-Given a newly-exploited vulnerability or threat, propose behavioral hunting \
-detections that would surface exploitation or post-exploitation activity on \
-endpoints. Rules:
+You receive a mixed feed of recent threat intelligence. Each item is one of:
+- vulnerability: an actively-exploited CVE.
+- ioc_family: a malware family with fresh indicators.
+- sigma_rule: a community Sigma rule to translate into equivalent Defender KQL.
+- threat_report: a vendor blog / advisory describing a campaign or technique.
+
+For each item where a sound ENDPOINT detection is possible, propose behavioral \
+hunting KQL. Rules:
 - Prefer durable BEHAVIORAL detections (process lineage, command-line patterns, \
 suspicious file/registry/network activity) over raw IOCs (specific IPs/hashes), \
-which go stale within days.
+which go stale within days. For ioc_family items, detect the family's TTPs, not \
+the listed indicators.
+- For sigma_rule items, translate the rule's intent faithfully: map its logsource \
+to the right Advanced Hunting table (process_creation -> DeviceProcessEvents, \
+network_connection -> DeviceNetworkEvents, registry_* -> DeviceRegistryEvents, \
+image_load -> DeviceImageLoadEvents, file_event -> DeviceFileEvents, etc.) and \
+preserve the detection/condition logic.
 - Use only real Advanced Hunting tables: DeviceProcessEvents, DeviceNetworkEvents, \
 DeviceFileEvents, DeviceRegistryEvents, DeviceLogonEvents, DeviceImageLoadEvents, \
 DeviceEvents, EmailEvents, IdentityLogonEvents, etc.
 - Every query must start from a table, use `| where Timestamp > ago(1d)`, and end \
 with a `| project` of the useful investigative columns.
 - Map each detection to the single best-fitting MITRE ATT&CK tactic from the \
-allowed list provided by the user.
-- Include an ATT&CK technique ID (e.g. T1059.001) where applicable.
-- If a threat does not lend itself to a sound endpoint detection, return no \
+allowed list provided by the user; include an ATT&CK technique ID where applicable.
+- If an item does not lend itself to a sound endpoint detection, return no \
 detection for it rather than a low-quality guess.
 - Keep each query focused; tune-able allowlists belong in tuning_notes, not hardcoded."""
+
+
+def _render_item(t: dict) -> str:
+    kind = t.get("kind", "vulnerability")
+    d = t.get("details", {})
+    head = f"- [{kind}] {t['id']} — {t['title']}\n    summary: {t.get('summary','')}"
+    if kind == "vulnerability":
+        return (
+            head
+            + f"\n    vendor/product: {d.get('vendor','')} / {d.get('product','')}"
+            + f"\n    required action: {d.get('required_action','')}"
+            + f"\n    known ransomware use: {d.get('known_ransomware','Unknown')}"
+        )
+    if kind == "ioc_family":
+        return head + f"\n    family: {d.get('family','')}  tags: {', '.join(d.get('tags', []))}"
+    if kind == "sigma_rule":
+        return (
+            head
+            + f"\n    logsource: {d.get('logsource', {})}"
+            + f"\n    ATT&CK tags: {', '.join(d.get('attack_tags', []))}"
+            + f"\n    sigma detection:\n"
+            + "\n".join("      " + ln for ln in d.get("detection_yaml", "").splitlines())
+        )
+    if kind == "threat_report":
+        return head + f"\n    link: {d.get('link','')}"
+    return head
 
 
 def _build_prompt(threats: list[dict], allowed_tactics: list[str]) -> str:
@@ -68,22 +104,15 @@ def _build_prompt(threats: list[dict], allowed_tactics: list[str]) -> str:
         "Allowed tactics (use exactly these strings for the `tactic` field):",
         ", ".join(allowed_tactics),
         "",
-        "Newly exploited threats from the last few days:",
+        "Recent threat intelligence:",
         "",
     ]
-    for t in threats:
-        lines.append(
-            f"- {t['id']} — {t['title']}\n"
-            f"    vendor/product: {t.get('vendor','')} / {t.get('product','')}\n"
-            f"    description: {t.get('description','')}\n"
-            f"    required action: {t.get('required_action','')}\n"
-            f"    known ransomware use: {t.get('known_ransomware','Unknown')}"
-        )
-    lines.append("")
-    lines.append(
-        "Propose behavioral KQL detections for the threats where a sound endpoint "
-        "detection is possible. Return them in the structured `detections` array."
-    )
+    lines += [_render_item(t) for t in threats]
+    lines += [
+        "",
+        "Propose behavioral KQL detections for the items where a sound endpoint "
+        "detection is possible. Return them in the structured `detections` array.",
+    ]
     return "\n".join(lines)
 
 

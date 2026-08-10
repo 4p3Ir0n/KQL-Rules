@@ -6,17 +6,45 @@ lookback_days: 3
 # Claude model used to draft/map detections. Override per the claude-api guidance.
 model: claude-opus-5
 
-# Max new threats to turn into detections per run (keeps PRs reviewable and cost bounded).
-max_threats_per_run: 8
+# Overall cap on detections drafted per run (keeps PRs reviewable and cost bounded).
+# Sources are merged round-robin up to this cap so no single feed dominates.
+max_threats_per_run: 12
 
-# Threat-intel sources. Only free / no-auth feeds are enabled by default.
+# Threat-intel sources. Each has its own per-source cap.
 sources:
+  # CVEs being actively exploited in the wild. Free, no auth.
   cisa_kev:
     enabled: true
     url: https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json
+    max_items: 6
+
+  # Fresh malware IOCs, aggregated by malware family into behavioral candidates.
+  # Requires a free abuse.ch account API key in the ABUSE_CH_AUTH_KEY env/secret.
+  abuse_ch:
+    enabled: true
+    url: https://threatfox-api.abuse.ch/api/v1/
+    max_items: 4
+
+  # Community detection rules; translated toward Defender KQL.
+  # Uses GITHUB_TOKEN (auto-provided in CI) for a higher API rate limit.
+  sigmahq:
+    enabled: true
+    repo: SigmaHQ/sigma
+    max_items: 4
+    logsource_products: [windows]   # keep rules for these platforms (+ product-less rules)
+
+  # Vendor threat-intel blogs / advisory feeds (RSS/Atom).
+  vendor_rss:
+    enabled: true
+    max_items: 4
+    feeds:
+      - { name: "Microsoft Security", url: "https://www.microsoft.com/en-us/security/blog/feed/" }
+      - { name: "The DFIR Report",    url: "https://thedfirreport.com/feed/" }
+      - { name: "CISA Advisories",    url: "https://www.cisa.gov/cybersecurity-advisories/all.xml" }
+      - { name: "Unit 42",            url: "https://unit42.paloaltonetworks.com/feed/" }
+      - { name: "SANS ISC",           url: "https://isc.sans.edu/rssfeed_full.xml" }
 
 # MITRE ATT&CK tactic -> repo folder that holds that tactic's KQL file.
-# The generator maps each threat to one of these tactics.
 tactic_dirs:
   InitialAccess: InitialAccess
   Execution: Execution
