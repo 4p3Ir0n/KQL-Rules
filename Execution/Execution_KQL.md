@@ -316,3 +316,41 @@ DeviceProcessEvents
 | project Timestamp, DeviceName, AccountName, InitiatingProcessFileName, FileName, ProcessCommandLine
 | order by Timestamp desc
 ```
+
+## 17) ClickFix / ClearFake: command pasted into the Windows Run dialog (RunMRU)
+
+**ATT&CK:** T1204.004  
+**Severity:** High  
+**Purpose:** ClearFake and IClickFix lures instruct victims to paste an attacker-supplied command into the Win+R Run dialog. Windows records pasted Run commands in the Explorer RunMRU registry key, making this a high-fidelity, IOC-independent detection of the ClickFix social-engineering chain.
+
+```kusto
+DeviceRegistryEvents
+| where Timestamp > ago(1d)
+| where RegistryKey has @"\Explorer\RunMRU"
+| where RegistryValueData has_any ("powershell","pwsh","mshta","curl","certutil","bitsadmin","msiexec","rundll32","regsvr32","wscript","cscript","conhost","forfiles","http://","https://","\\\\","FromBase64String","-enc","iex","Invoke-Expression","-w h","hidden")
+| project Timestamp, DeviceName, DeviceId, InitiatingProcessAccountName, InitiatingProcessAccountDomain, RegistryKey, RegistryValueName, RegistryValueData, InitiatingProcessFileName, ReportId
+```
+
+**Tuning notes:**
+- Very low volume in most environments. Allowlist admin/helpdesk accounts and known internal tooling strings (e.g. `\\fileserver\share` UNC paths, mmc, gpupdate).
+- Pivot on the same DeviceId in DeviceProcessEvents/DeviceNetworkEvents within +/-5 minutes to confirm payload retrieval.
+- Consider dropping the bare `http://` term first if browser-URL pastes are common.
+
+## 18) ClickFix: fake CAPTCHA / verification lure strings in command lines
+
+**ATT&CK:** T1204.004  
+**Severity:** High  
+**Purpose:** IClickFix and related ClickFix kits embed decoy text ("I am not a robot", "Ray ID", "Verification") and long whitespace padding in the pasted command so the malicious portion scrolls out of view. Detects the lure artefact itself rather than perishable domains.
+
+```kusto
+DeviceProcessEvents
+| where Timestamp > ago(1d)
+| where FileName in~ ("cmd.exe","powershell.exe","pwsh.exe","mshta.exe","wscript.exe","cscript.exe","conhost.exe","msiexec.exe")
+| where ProcessCommandLine has_any ("not a robot","I am not a robot","captcha","reCAPTCHA","Ray ID","Verification ID","verify you are","human verification","Cloudflare Verification","Press Enter to verify","Fix it","DisplayFix")
+    or ProcessCommandLine matches regex @"\s{25,}(#|::|rem\s)"
+| project Timestamp, DeviceName, DeviceId, AccountName, FileName, FolderPath, ProcessCommandLine, InitiatingProcessFileName, InitiatingProcessCommandLine, InitiatingProcessParentFileName, SHA256, ReportId
+```
+
+**Tuning notes:**
+- Extremely low false-positive rate; the regex for whitespace-padded comments may fire on generated build scripts — allowlist by InitiatingProcessFileName (e.g. CI agents, msbuild) if needed.
+- Extend the lure string list as new ClickFix themes appear (Teams, Zoom, Word update).

@@ -245,3 +245,21 @@ DeviceProcessEvents
 | project Timestamp, DeviceName, AccountName, FileName, ProcessCommandLine, InitiatingProcessFileName
 | order by Timestamp desc
 ```
+
+## 13) Linux shell history destruction or Atuin history tampering
+
+**ATT&CK:** T1070.003  
+**Severity:** Medium  
+**Purpose:** Detects attackers disabling or wiping shell history (including the Atuin SQLite history store), a common anti-forensics step after interactive Linux access.
+
+```kusto
+DeviceProcessEvents
+| where Timestamp > ago(1d)
+| where ProcessCommandLine has_any ("history -c","history -d","history -w /dev/null","unset HISTFILE","HISTFILE=/dev/null","HISTFILE=\"\"","HISTSIZE=0","HISTFILESIZE=0","set +o history","export HISTCONTROL=ignorespace",".bash_history",".zsh_history",".sh_history","atuin history prune","atuin history delete","atuin store purge",".local/share/atuin/history.db")
+| where FileName in~ ("bash","sh","zsh","dash","ksh","atuin","rm","shred","truncate","ln","unlink","sqlite3")
+| project Timestamp, DeviceName, DeviceId, AccountName, ProcessCommandLine, FileName, FolderPath, ProcessId, InitiatingProcessFileName, InitiatingProcessCommandLine, InitiatingProcessAccountName, ReportId
+```
+
+**Tuning notes:**
+- Some hardening/imaging scripts and dotfile managers legitimately touch HISTFILE settings — allowlist by InitiatingProcessCommandLine (e.g. ansible, cloud-init, packer) or by device group for build hosts.
+- Correlate with preceding SSH logons in DeviceLogonEvents to prioritise sessions from unusual source IPs.
